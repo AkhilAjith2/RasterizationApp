@@ -1,12 +1,40 @@
 ﻿<Window x:Class="RasterizationApp.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
-        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        xmlns:local="clr-namespace:RasterizationApp"
-        mc:Ignorable="d"
-        Title="MainWindow" Height="450" Width="800">
+        Title="Shape Drawing App" Width="1000" Height="600" Background="#28282B" WindowState="Maximized">
     <Grid>
-        
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="150"/>
+            <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
+
+        <!-- Tools panel -->
+        <StackPanel Orientation="Vertical" Background="#28282B" Grid.Column="0" HorizontalAlignment="Center" VerticalAlignment="Center">
+            <Separator Margin="10" Foreground="#28282B"/>
+            <ToggleButton x:Name="LineButton" Content="Line Mode" Click="DrawLine_Click" Width="120" Height="40" Margin="10" Padding="10" FontSize="10" FontWeight="Bold" Foreground="White" Background="Black"/>
+            <ToggleButton x:Name="CircleButton" Content="Circle Mode" Click="DrawCircle_Click" Width="120" Height="40" Margin="10" Padding="10" FontSize="10" FontWeight="Bold" Foreground="White" Background="Black"/>
+            <ToggleButton x:Name="PolygonButton" Content="Polygon Mode" Click="DrawPolygon_Click" Width="120" Height="40" Margin="10" Padding="10" FontSize="10" FontWeight="Bold" Foreground="White" Background="Black"/>
+            <ToggleButton x:Name="CapsuleButton" Content="Capsule Mode" Click="DrawCapsule_Click" Width="120" Height="40" Margin="10" Padding="10" FontSize="10" FontWeight="Bold" Foreground="White" Background="Black"/>
+            <Separator Margin="10" Foreground="#28282B"/>
+            <Button Content="Clear Canvas" Click="ClearCanvas_Click" Width="120" Height="40" Margin="10" Padding="10" FontSize="10" FontWeight="Bold" Foreground="White" Background="Black"/>
+            <Button Content="Save Shapes" Click="SaveButton_Click" Width="120" Height="40" Margin="10" Padding="10" FontSize="10" FontWeight="Bold" Foreground="White" Background="Black"/>
+            <Button Content="Load Shapes" Click="LoadButton_Click" Width="120" Height="40" Margin="10" Padding="10" FontSize="10" FontWeight="Bold" Foreground="White" Background="Black"/>
+            <Separator Margin="10" Foreground="#28282B"/>
+            <Button x:Name="colorPicker" Click="ColorPicker_Click" Content="Pick Color" Width="120" Height="40" FontSize="10" FontWeight="Bold" Margin="10" Foreground="White" Background="Black"/>
+            <ToggleButton x:Name="AntialiasingButton" Content="Toggle Antialiasing" Click="ToggleAntialiasing_Click" Height="40" Width="120" Margin="10" Padding="10" FontSize="10" FontWeight="Bold" Foreground="White" Background="Black"/>
+            <Separator Margin="10" Foreground="#28282B"/>
+        </StackPanel>
+
+        <!-- Drawing area -->
+        <Grid Background="#28282B" Grid.Column="1">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+
+            <!-- Canvas for drawing -->
+            <Canvas x:Name="DrawingCanvas" Background="White" Grid.Row="1" Margin="10,10,10,10"/>
+            <Image x:Name="ImageControl" Grid.Row="1" Margin="10,10,10,10"/>
+        </Grid>
     </Grid>
 </Window>
