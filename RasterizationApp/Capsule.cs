@@ -77,11 +77,11 @@ namespace RasterizationApp
                 int x = (int)(centerX + radius * Math.Cos(theta));
                 int y = (int)(centerY + radius * Math.Sin(theta));
 
-                PutPixel(new Point(x, y), color);
+                PutPixel(x, y, color);
             }
         }
 
-        private void DrawCapsule_Click(object sender, RoutedEventArgs e)
+        /*private void DrawCapsule_Click(object sender, RoutedEventArgs e)
         {
             isDrawingLine = false;
             isDrawingCircle = false;
@@ -92,7 +92,7 @@ namespace RasterizationApp
             CircleButton.IsChecked = false;
             PolygonButton.IsChecked = false;
             CapsuleButton.IsChecked = true;
-        }
+        }*/
     }
 
 }

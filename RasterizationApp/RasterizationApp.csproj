@@ -70,11 +70,15 @@
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </ApplicationDefinition>
+    <Compile Include="BoundingFill.cs" />
     <Compile Include="Capsule.cs" />
     <Compile Include="Circle.cs" />
     <Compile Include="CircleSector.cs" />
+    <Compile Include="Clipping.cs" />
+    <Compile Include="Filling.cs" />
     <Compile Include="GuptaSproull.cs" />
     <Compile Include="Line.cs" />
+    <Compile Include="MyRectangle.cs" />
     <Compile Include="Polygon.cs" />
     <Compile Include="ShapesData.cs" />
     <Compile Include="ThicknessWindow.xaml.cs">

@@ -71,35 +71,11 @@ namespace RasterizationApp
                 ++x;
                 PutCirclePixels(center, x, y, color);
             }
-            if (selectedCircle != null && center == selectedCircle.Center)
+            /*if (selectedCircle != null && center == selectedCircle.Center)
             {
                 DrawCircleBorder(center, radius, Brushes.Yellow); 
-            }
+            }*/
             /*FillCircle(center, (int)radius, color);*/
-        }
-        private void DrawCircleBorder(Point center, double radius, SolidColorBrush color)
-        {
-            Ellipse borderCircle = new Ellipse
-            {
-                Width = 2 * radius + 5, 
-                Height = 2 * radius + 5,
-                Stroke = color,
-                StrokeThickness = 4, 
-                Margin = new Thickness(center.X - radius - 2.5, center.Y - radius - 2.5, 0, 0) 
-            };
-            DrawingCanvas.Children.Add(borderCircle);
-        }
-
-        private void FillCircle(Point center, int radius, SolidColorBrush color)
-        {
-            Ellipse circle = new Ellipse
-            {
-                Width = 2 * radius,
-                Height = 2 * radius,
-                Fill = color,
-                Margin = new Thickness(center.X - radius, center.Y - radius, 0, 0)
-            };
-            DrawingCanvas.Children.Add(circle);
         }
 
         /*private void FillCircle(Point center, int radius, SolidColorBrush fillColor)
@@ -118,26 +94,14 @@ namespace RasterizationApp
 
         private void PutCirclePixels(Point center, int x, int y, SolidColorBrush color = null)
         {
-            PutPixel(new Point((int)(center.X + x), (int)(center.Y + y)), color);
-            PutPixel(new Point((int)(center.X - x), (int)(center.Y + y)), color);
-            PutPixel(new Point((int)(center.X + x), (int)(center.Y - y)), color);
-            PutPixel(new Point((int)(center.X - x), (int)(center.Y - y)), color);
-            PutPixel(new Point((int)(center.X + y), (int)(center.Y + x)), color);
-            PutPixel(new Point((int)(center.X - y), (int)(center.Y + x)), color);
-            PutPixel(new Point((int)(center.X + y), (int)(center.Y - x)), color);
-            PutPixel(new Point((int)(center.X - y), (int)(center.Y - x)), color);
-        }
-
-        private void PutPixel(Point point, SolidColorBrush color)
-        {
-            Rectangle pixel = new Rectangle
-            {
-                Width = 1,
-                Height = 1,
-                Fill = color,
-                Margin = new Thickness(point.X, point.Y, 0, 0) 
-            };
-            DrawingCanvas.Children.Add(pixel);
+            PutPixel((int)(center.X + x), (int)(center.Y + y), color);
+            PutPixel((int)(center.X - x), (int)(center.Y + y), color);
+            PutPixel((int)(center.X + x), (int)(center.Y - y), color);
+            PutPixel((int)(center.X - x), (int)(center.Y - y), color);
+            PutPixel((int)(center.X + y), (int)(center.Y + x), color);
+            PutPixel((int)(center.X - y), (int)(center.Y + x), color);
+            PutPixel((int)(center.X + y), (int)(center.Y - x), color);
+            PutPixel((int)(center.X - y), (int)(center.Y - x), color);
         }
 
         private bool IsPointInsideCircle(Point point, Point center, double radius)
@@ -176,19 +140,18 @@ namespace RasterizationApp
             return null;
         }
 
-
-
         private void DrawCircle_Click(object sender, RoutedEventArgs e)
         {
             isDrawingLine = false;
             isDrawingCircle = true;
             isDrawingPolygon = false;
             isDrawingCapsule = false;
+            isDrawingRectangle = false;
 
             LineButton.IsChecked = false;
             CircleButton.IsChecked = true;
             PolygonButton.IsChecked = false;
-            CapsuleButton.IsChecked = false;
+            RectangleButton.IsChecked = false;
         }
     }
 }

@@ -49,7 +49,7 @@ namespace RasterizationApp
                 for (i = 1; (y + i * sy) != y2 && IntensifyPixel(x, y + i * sy, thickness, i * two_dx_invDenom, color) != 0; ++i) ;
                 for (i = 1; (y - i * sy) != y2 && IntensifyPixel(x, y - i * sy, thickness, i * two_dx_invDenom, color) != 0; ++i) ;
             }
-            while ((x != x2 || Math.Abs(y - y2) > 1) && (x >= 0 && x < DrawingCanvas.ActualWidth && y >= 0 && y < DrawingCanvas.ActualHeight))
+            while ((x != x2 || Math.Abs(y - y2) > 1) && (x >= 0 && x < CanvasBitmap.ActualWidth && y >= 0 && y < CanvasBitmap.ActualHeight))
             {
                 if (d < 0)
                 {
@@ -68,7 +68,6 @@ namespace RasterizationApp
                 for (i = 1; (y - i * sy) != y2 && IntensifyPixel(x, y - i * sy, thickness, i * two_dx_invDenom + two_v_dx * invDenom, color) != 0; ++i) ;
             }
         }
-
 
         private int IntensifyPixel(int x, int y, float thickness, float distance, SolidColorBrush color)
         {

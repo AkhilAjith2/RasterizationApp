@@ -22,6 +22,8 @@ using Point = System.Windows.Point;
 using System.Security.AccessControl;
 using System.Net;
 using System.Diagnostics;
+using static System.Windows.Forms.LinkLabel;
+using System.Windows.Ink;
 
 
 namespace RasterizationApp
@@ -34,12 +36,13 @@ namespace RasterizationApp
 
     public partial class MainWindow : Window
     {
-        private WriteableBitmap writableBitmap;
+        private static WriteableBitmap writableBitmap;
 
         private List<CustomLine> lines = new List<CustomLine>();
         private List<CustomCircle> circles = new List<CustomCircle>();
         private List<Polygon> polygons = new List<Polygon>();
         private List<Capsule> capsules = new List<Capsule>();
+        private List<MyRectangle> rectangles = new List<MyRectangle>();
 
         private List<Point> currentPolygonVertices = new List<Point>();
 
@@ -50,19 +53,27 @@ namespace RasterizationApp
         private CustomLine selectedLine = null;
         private CustomCircle selectedCircle = null;
         private Polygon selectedPolygon = null;
+        private MyRectangle selectedRectangle = null;
 
         private bool isDrawing = false;
         private bool isDrawingLine = true;
         private bool isDrawingCircle = false;
         private bool isDrawingPolygon = false;
         private bool isDrawingCapsule = false;
+        private bool isDrawingRectangle = false;
 
         public SolidColorBrush SelectedColor { get; set; } = Brushes.Black; 
         private bool antialiasingEnabled = false;
 
-        private bool isMovingEdge = false;
+        private bool isMovingPolygonEdge = false;
+        private bool isMovingRectangleEdge = false;
 
         Capsule capsule = null;
+        private Point firstVertex;
+        private bool isFirstClick = true;
+
+        public static int bitmapWidth = 1400;
+        public static int bitmapHeight = 800;
 
         public MainWindow()
         {
@@ -70,38 +81,82 @@ namespace RasterizationApp
             MouseDown += Canvas_MouseDown;
             KeyDown += MainWindow_KeyDown;
 
-            /*InitializeWritableBitmap();*/
+            InitializeWritableBitmap();
         }
-        /*private void InitializeWritableBitmap()
+        private void InitializeWritableBitmap()
         {
             // Create a WritableBitmap with the desired width, height, and DPI settings
-            writableBitmap = new WriteableBitmap(800, 600, 96, 96, PixelFormats.Bgra32, null);
+            writableBitmap = new WriteableBitmap(bitmapWidth, bitmapHeight, 96, 96, PixelFormats.Bgra32, null);
 
             // Display the WritableBitmap in an Image control
-            ImageControl.Source = writableBitmap;
-        }*/
+            CanvasBitmap.Source = writableBitmap;
+            SetBitmapColor(writableBitmap, Colors.White);
+        }
+
+        public static void SetBitmapColor(WriteableBitmap bitmap, System.Windows.Media.Color color)
+        {
+            int bytesPerPixel = (bitmap.Format.BitsPerPixel + 7) / 8;
+            int stride = bitmap.PixelWidth * bytesPerPixel;
+            int size = stride * bitmap.PixelHeight;
+            byte[] pixels = new byte[size];
+
+            for (int i = 0; i < size; i += bytesPerPixel)
+            {
+                pixels[i] = color.B;
+                pixels[i + 1] = color.G;
+                pixels[i + 2] = color.R;
+                pixels[i + 3] = color.A;
+            }
+
+            bitmap.WritePixels(new Int32Rect(0, 0, bitmap.PixelWidth, bitmap.PixelHeight), pixels, stride, 0);
+        }
 
         private void MainWindow_KeyDown(object sender, System.Windows.Input.KeyEventArgs e)
         {
             if (e.Key == Key.G)
             {
-                isMovingEdge = !isMovingEdge;
-                Point cursorPosition = Mouse.GetPosition(DrawingCanvas);
-
-                foreach (var polygon in polygons)
+                if (isDrawingPolygon)
                 {
-                    if (IsPointInsidePolygon(cursorPosition, polygon.Vertices))
+                    isMovingPolygonEdge = !isMovingPolygonEdge;
+                    Point cursorPosition = Mouse.GetPosition(CanvasBitmap);
+
+                    foreach (var polygon in polygons)
                     {
-                        if (selectedPolygon == polygon)
+                        if (IsPointInsidePolygon(cursorPosition, polygon.Vertices))
                         {
-                            selectedPolygon = null;
+                            if (selectedPolygon == polygon)
+                            {
+                                selectedPolygon = null;
+                            }
+                            else
+                            {
+                                selectedPolygon = polygon;
+                            }
+                            RedrawCanvas();
+                            return;
                         }
-                        else
+                    }
+                }
+                else if (isDrawingRectangle)
+                {
+                    isMovingRectangleEdge = !isMovingRectangleEdge;
+                    Point cursorPosition = Mouse.GetPosition(CanvasBitmap);
+
+                    foreach (var rectangle in rectangles)
+                    {
+                        if (IsPointInsideRectangle(cursorPosition, rectangle))
                         {
-                            selectedPolygon = polygon;
+                            if (selectedRectangle == rectangle)
+                            {
+                                selectedRectangle = null;
+                            }
+                            else
+                            {
+                                selectedRectangle = rectangle;
+                            }
+                            RedrawCanvas();
+                            return;
                         }
-                        RedrawCanvas();
-                        return;
                     }
                 }
             }
@@ -109,7 +164,7 @@ namespace RasterizationApp
             {
                 if (isDrawingLine)
                 {
-                    Point cursorPosition = Mouse.GetPosition(DrawingCanvas);
+                    Point cursorPosition = Mouse.GetPosition(CanvasBitmap);
 
                     foreach (var line in lines)
                     {
@@ -131,7 +186,7 @@ namespace RasterizationApp
                 }
                 else if (isDrawingCircle)
                 {
-                    Point cursorPosition = Mouse.GetPosition(DrawingCanvas);
+                    Point cursorPosition = Mouse.GetPosition(CanvasBitmap);
 
                     foreach (var circle in circles)
                     {
@@ -151,11 +206,11 @@ namespace RasterizationApp
                             break;
                         }
                     }
-                    
+
                 }
                 else if (isDrawingPolygon)
                 {
-                    Point cursorPosition = Mouse.GetPosition(DrawingCanvas);
+                    Point cursorPosition = Mouse.GetPosition(CanvasBitmap);
 
                     foreach (var polygon in polygons)
                     {
@@ -164,7 +219,7 @@ namespace RasterizationApp
                             if (selectedPolygon == polygon)
                             {
                                 selectedPolygon = null;
-                                isMovingEdge = false;
+                                isMovingPolygonEdge = false;
                             }
                             else
                             {
@@ -175,11 +230,77 @@ namespace RasterizationApp
                         }
                     }
                 }
+                else if (isDrawingRectangle)
+                {
+                    Point cursorPosition = Mouse.GetPosition(CanvasBitmap);
 
+                    foreach (var rectangle in rectangles)
+                    {
+                        if (IsPointInsideRectangle(cursorPosition, rectangle))
+                        {
+                            if (selectedRectangle == rectangle)
+                            {
+                                selectedRectangle = null;
+                                isMovingRectangleEdge = false;
+                            }
+                            else
+                            {
+                                selectedRectangle = rectangle;
+                            }
+                            RedrawCanvas();
+                            return;
+                        }
+                    }
+                }
+            }
+            else if (e.Key == Key.C)
+            {
+                if (isDrawingRectangle)
+                {
+                    Point cursorPosition = Mouse.GetPosition(CanvasBitmap);
+
+                    foreach (var rectangle in rectangles)
+                    {
+                        if (IsPointInsideRectangle(cursorPosition, rectangle))
+                        {
+                            if (clippingRectangle == rectangle)
+                            {
+                                clippingRectangle = null;
+                            }
+                            else
+                            {
+                                clippingRectangle = rectangle;
+                            }
+                            RedrawCanvas();
+                            return;
+                        }
+                    }
+                }
+                /*else if (isDrawingPolygon) 
+                {
+                    Point cursorPosition = Mouse.GetPosition(CanvasBitmap);
+
+                    foreach (var polygon in polygons)
+                    {
+                        if (IsPointInsidePolygon(cursorPosition, polygon.Vertices))
+                        {
+                            if (clippingRectangle != null)
+                            {
+                                polygon.ClippingRectangle = clippingRectangle;
+                            }
+                            else
+                            {
+                                polygon.ClippingRectangle = null;
+                            }
+                            RedrawCanvas();
+                            return;
+                        }
+                    }
+                }*/
             }
             else if (e.Key == Key.D)
             {
-                Point cursorPosition = Mouse.GetPosition(DrawingCanvas);
+                Point cursorPosition = Mouse.GetPosition(CanvasBitmap);
 
                 if (isDrawingLine)
                 {
@@ -232,6 +353,49 @@ namespace RasterizationApp
                         }
                     }
                 }
+                else if (isDrawingRectangle)
+                {
+                    foreach (var rectangle in rectangles)
+                    {
+                        if (IsPointInsideRectangle(cursorPosition, rectangle))
+                        {
+                            if (selectedRectangle == null)
+                            {
+                                selectedRectangle = rectangle;
+                                if (clippingRectangle == rectangle)
+                                {
+                                    clippingRectangle = null;
+                                }
+                                rectangles.Remove(selectedRectangle);
+                                selectedRectangle = null;
+                                RedrawCanvas();
+                                return;
+                            }
+                        }
+                    }
+                }
+            }
+            else if (e.Key == Key.F)
+            {
+                if (selectedPolygon != null)
+                {
+                    if (selectedPolygon.isFilled == true)
+                    {
+                        selectedPolygon.isFilled = false;
+                        selectedPolygon.Color = Brushes.Black;
+                    }
+                    else if (selectedPolygon.isFilled == false)
+                    {
+                        ColorDialog colorDialog = new ColorDialog();
+                        if (colorDialog.ShowDialog() == System.Windows.Forms.DialogResult.OK)
+                        {
+                            SolidColorBrush newColor = new SolidColorBrush(System.Windows.Media.Color.FromArgb(colorDialog.Color.A, colorDialog.Color.R, colorDialog.Color.G, colorDialog.Color.B));
+                            selectedPolygon.Color = newColor;
+                        }
+                        selectedPolygon.isFilled = true;
+                    }
+                }
+                RedrawCanvas();
             }
             else if (e.Key == Key.T && selectedLine != null)
             {
@@ -267,11 +431,60 @@ namespace RasterizationApp
                     }
                 }
             }
+            else if (e.Key == Key.T && selectedRectangle != null)
+            {
+                int newThickness = PromptForThickness();
+
+                if (newThickness > 0)
+                {
+                    foreach (var rectangle in rectangles)
+                    {
+                        if (rectangle == selectedRectangle)
+                        {
+                            rectangle.Thickness = newThickness;
+
+                            RedrawCanvas();
+                            return;
+                        }
+                    }
+                }
+            }
+            else if (e.Key == Key.I && selectedPolygon != null)
+            {
+                Point cursorPosition = Mouse.GetPosition(CanvasBitmap);
+
+                OpenFileDialog openFileDialog = new OpenFileDialog();
+                openFileDialog.Filter = "Image files (*.jpg;*.jpeg;*.png;*.bmp;*.tiff)|*.jpg;*.jpeg;*.png;*.bmp;*.tiff";
+                if (openFileDialog.ShowDialog() == System.Windows.Forms.DialogResult.OK)
+                {
+                    string imagePath = openFileDialog.FileName;
+                    SelectedImagePath = imagePath;
+                }
+
+                foreach (var polygon in polygons)
+                {
+                    if (IsPointInsidePolygon(cursorPosition, polygon.Vertices))
+                    {
+                        selectedPolygon = polygon;
+                        selectedPolygon.Color = Brushes.Black;
+                        selectedPolygon.isFilled = false;
+                        selectedPolygon.IsImageFilled = true;
+                        selectedPolygon.FillImagePath = SelectedImagePath;
+                        RedrawCanvas();
+                        return;
+                    }
+                }
+            }
         }
 
         private void Canvas_MouseDown(object sender, MouseButtonEventArgs e)
         {
-            Point clickedPoint = e.GetPosition(DrawingCanvas);
+            Point clickedPoint = e.GetPosition(CanvasBitmap);
+
+            /*if (boundaryMode == true)
+            {
+                BoundaryFill((int)clickedPoint.X, (int)clickedPoint.Y, fillColor, boundaryColor);
+            }*/
 
             if (isDrawingLine)
             {
@@ -355,7 +568,7 @@ namespace RasterizationApp
             }
             else if (isDrawingPolygon)
             {
-                if (selectedPolygon != null && isMovingEdge == false)
+                if (selectedPolygon != null && isMovingPolygonEdge == false)
                 {
                     if (e.RightButton == MouseButtonState.Pressed)
                     {
@@ -387,7 +600,7 @@ namespace RasterizationApp
 
                         if (selectedVertex != null)
                         {
-                            Point clickedPos = e.GetPosition(DrawingCanvas);
+                            Point clickedPos = e.GetPosition(CanvasBitmap);
 
                             int vertexIndex = selectedPolygon.Vertices.IndexOf(selectedVertex);
                             selectedPolygon.Vertices[vertexIndex] = clickedPos;
@@ -413,7 +626,7 @@ namespace RasterizationApp
                         }
                     }
                 }
-                else if (selectedPolygon != null && isMovingEdge == true)
+                else if (selectedPolygon != null && isMovingPolygonEdge == true)
                 {
                     List<CustomLine> edges = new List<CustomLine>();
                     for (int i = 0; i < selectedPolygon.Vertices.Count; i++)
@@ -474,10 +687,9 @@ namespace RasterizationApp
                     }
                 }
             }
-
             else if (isDrawingCapsule)
             {
-                Point clickedPos = e.GetPosition(DrawingCanvas);
+                Point clickedPos = e.GetPosition(CanvasBitmap);
 
                 if (capsule == null)
                 {
@@ -496,6 +708,150 @@ namespace RasterizationApp
                 }
 
             }
+            else if (isDrawingRectangle)
+            {
+                if (selectedRectangle != null && isMovingRectangleEdge == false)
+                {
+                    if (e.RightButton == MouseButtonState.Pressed)
+                    {
+                        {
+                            double deltaX = clickedPoint.X - selectedRectangle.Vertices[0].X;
+                            double deltaY = clickedPoint.Y - selectedRectangle.Vertices[0].Y;
+
+                            for (int i = 0; i < selectedRectangle.Vertices.Count; i++)
+                            {
+                                selectedRectangle.Vertices[i] = new Point(selectedRectangle.Vertices[i].X + deltaX, selectedRectangle.Vertices[i].Y + deltaY);
+                            }
+
+                            RedrawCanvas();
+                        }
+                    }
+                    else if (e.LeftButton == MouseButtonState.Pressed)
+                    {
+                        double minDistance = double.MaxValue;
+                        foreach (var vertex in selectedRectangle.Vertices)
+                        {
+                            Console.WriteLine(vertex);
+                            double distance = CalculateDistance(clickedPoint, vertex);
+                            if (distance < minDistance)
+                            {
+                                minDistance = distance;
+                                selectedVertex = vertex;
+                            }
+                        }
+                        
+                        if (selectedVertex != null)
+                        {
+                            int vertexIndex = selectedRectangle.Vertices.IndexOf(selectedVertex);
+                            selectedRectangle.Vertices[vertexIndex] = clickedPoint;
+
+                            if (vertexIndex == 0)
+                            {
+                                selectedRectangle.Vertices[1] = new Point(selectedRectangle.Vertices[1].X, clickedPoint.Y);
+                                selectedRectangle.Vertices[3] = new Point(clickedPoint.X, selectedRectangle.Vertices[3].Y);
+                            }
+                            else if (vertexIndex == 1)
+                            {
+                                selectedRectangle.Vertices[0] = new Point(selectedRectangle.Vertices[0].X, clickedPoint.Y);
+                                selectedRectangle.Vertices[2] = new Point(clickedPoint.X, selectedRectangle.Vertices[2].Y);
+                            }
+                            else if (vertexIndex == 2)
+                            {
+                                selectedRectangle.Vertices[1] = new Point(clickedPoint.X, selectedRectangle.Vertices[1].Y);
+                                selectedRectangle.Vertices[3] = new Point(selectedRectangle.Vertices[3].X, clickedPoint.Y);
+                            }
+                            else if (vertexIndex == 3)
+                            {
+                                selectedRectangle.Vertices[0] = new Point(clickedPoint.X, selectedRectangle.Vertices[0].Y);
+                                selectedRectangle.Vertices[2] = new Point(selectedRectangle.Vertices[2].X, clickedPoint.Y);
+                            }
+                            RedrawCanvas();
+                            return;
+                        }
+                    }
+                }
+                else if (selectedRectangle != null && isMovingRectangleEdge == true)
+                {
+                    List<CustomLine> edges = new List<CustomLine>();
+                    for (int i = 0; i < selectedRectangle.Vertices.Count; i++)
+                    {
+                        Point startPoint = selectedRectangle.Vertices[i];
+                        Point endPoint = selectedRectangle.Vertices[(i + 1) % selectedRectangle.Vertices.Count];
+                        edges.Add(new CustomLine(startPoint, endPoint, selectedRectangle.Thickness, selectedRectangle.Color));
+                    }
+
+                    double closestDistance = double.MaxValue;
+                    CustomLine closestEdge = null;
+
+                    foreach (var edge in edges)
+                    {
+                        double distance = DistanceToEdge(clickedPoint, edge.StartPoint, edge.EndPoint);
+                        if (distance < closestDistance)
+                        {
+                            closestDistance = distance;
+                            closestEdge = edge;
+                        }
+                    }
+
+                    // Move the edge based on the position of the clicked point
+
+                    if (closestEdge.StartPoint.Y == closestEdge.EndPoint.Y) // Horizontal edge
+                    {
+                        if (closestEdge.StartPoint == selectedRectangle.Vertices[0] || closestEdge.EndPoint == selectedRectangle.Vertices[0])
+                        {
+                            selectedRectangle.Vertices[0] = new Point(selectedRectangle.Vertices[0].X, clickedPoint.Y);
+                            selectedRectangle.Vertices[1] = new Point(selectedRectangle.Vertices[0].X, selectedRectangle.Vertices[2].Y);
+                            selectedRectangle.Vertices[3] = new Point(selectedRectangle.Vertices[2].X, selectedRectangle.Vertices[0].Y);
+                            RedrawCanvas();
+                        }
+                        else if (closestEdge.StartPoint == selectedRectangle.Vertices[2] || closestEdge.EndPoint == selectedRectangle.Vertices[2])
+                        {
+                            selectedRectangle.Vertices[2] = new Point(selectedRectangle.Vertices[2].X, clickedPoint.Y);
+                            selectedRectangle.Vertices[1] = new Point(selectedRectangle.Vertices[0].X, selectedRectangle.Vertices[2].Y);
+                            selectedRectangle.Vertices[3] = new Point(selectedRectangle.Vertices[2].X, selectedRectangle.Vertices[0].Y);
+                            RedrawCanvas();
+                        }
+                    }
+                    else //Vertical edge
+                    {
+                        if (closestEdge.StartPoint == selectedRectangle.Vertices[0] || closestEdge.EndPoint == selectedRectangle.Vertices[0])
+                        {
+                            selectedRectangle.Vertices[0] = new Point(clickedPoint.X, selectedRectangle.Vertices[0].Y);
+                            selectedRectangle.Vertices[1] = new Point(selectedRectangle.Vertices[0].X, selectedRectangle.Vertices[2].Y);
+                            selectedRectangle.Vertices[3] = new Point(selectedRectangle.Vertices[2].X, selectedRectangle.Vertices[0].Y);
+                            RedrawCanvas();
+                        }
+                        else if (closestEdge.StartPoint == selectedRectangle.Vertices[2] || closestEdge.EndPoint == selectedRectangle.Vertices[2])
+                        {
+                            selectedRectangle.Vertices[2] = new Point(clickedPoint.X, selectedRectangle.Vertices[2].Y);
+                            selectedRectangle.Vertices[1] = new Point(selectedRectangle.Vertices[0].X, selectedRectangle.Vertices[2].Y);
+                            selectedRectangle.Vertices[3] = new Point(selectedRectangle.Vertices[2].X, selectedRectangle.Vertices[0].Y);
+                            RedrawCanvas();
+
+                        }
+                    }
+                }
+                else
+                {
+                    if (isFirstClick)
+                    {
+                        firstVertex = clickedPoint;
+                        isFirstClick = false;
+                    }
+                    else
+                    {
+                        Point thirdVertex = clickedPoint;
+                        Point secondVertex = new Point(thirdVertex.X, firstVertex.Y);
+                        Point forthVertex = new Point(firstVertex.X, thirdVertex.Y);
+
+                        List<Point> vertices = new List<Point> { firstVertex, secondVertex, thirdVertex, forthVertex };
+
+                        rectangles.Add(new MyRectangle(vertices, 1, Brushes.Black));
+                        Console.WriteLine(rectangles.Count);
+                        isFirstClick = true;
+                    }
+                }
+            }
             RedrawCanvas();
         }
 
@@ -512,7 +868,7 @@ namespace RasterizationApp
 
         private void RedrawCanvas()
         {
-            DrawingCanvas.Children.Clear();
+            InitializeWritableBitmap();
 
             foreach (var line in lines)
             {
@@ -529,22 +885,52 @@ namespace RasterizationApp
                 }
                 else
                 {
-                    DrawLine(line.StartPoint, line.EndPoint, line.Thickness, Brushes.Yellow);
+                    DrawLine(line.StartPoint, line.EndPoint, line.Thickness, Brushes.Red);
                 }
             }
             
             foreach (var circle in circles)
             {
-                DrawCircle(circle.Center, circle.Radius, circle.Color);
+                if (circle != selectedCircle)
+                {
+                    DrawCircle(circle.Center, circle.Radius, circle.Color);
+                }
+                else
+                {
+                    DrawCircle(circle.Center, circle.Radius, Brushes.Red);
+                }
             }
 
             foreach (var polygon in polygons)
             {
+                if (polygon.isFilled)
+                {
+                    ScanLineFiller filler = new ScanLineFiller();
+                    filler.FillPolygon(polygon);
+                }
+                if (polygon.IsImageFilled)
+                {
+                    ScanLineFiller filler = new ScanLineFiller();
+                    filler.FillPolygonImage(polygon);
+                }
                 DrawPolygon(polygon, polygon.Color);
+                if (selectedPolygon != null && polygon == selectedPolygon && isMovingPolygonEdge == false)
+                {
+                    DrawPolygon(polygon, Brushes.Red);
+                }
+                else if (selectedPolygon != null && polygon == selectedPolygon && isMovingPolygonEdge == true)
+                {
+                    DrawPolygon(polygon, Brushes.Green);
+                }
+                /*else if (polygon.ClippingRectangle != null)
+                {
+                    DrawPolygon(polygon, Brushes.BlueViolet);
+                }*/
+                
             }
             if (currentPolygonVertices.Count > 1)
             {
-                Polygon polygon = new Polygon(currentPolygonVertices.ToList(),3, Brushes.Black);
+                Polygon polygon = new Polygon(currentPolygonVertices.ToList(),1, Brushes.Black);
                 DrawPolygon(polygon, Brushes.Blue);
             }
 
@@ -553,6 +939,26 @@ namespace RasterizationApp
                 DrawCapsule(capsule);
             }
 
+            foreach (var rectangle in rectangles)
+            {
+                
+                if (selectedRectangle != null && rectangle == selectedRectangle && isMovingRectangleEdge == false)
+                {
+                    DrawRectangle(rectangle, Brushes.Red);
+                }
+                else if (selectedRectangle != null && rectangle == selectedRectangle && isMovingRectangleEdge == true)
+                {
+                    DrawRectangle(rectangle, Brushes.Green);
+                }
+                else if (clippingRectangle == rectangle)
+                {
+                    DrawRectangle(rectangle, Brushes.BlueViolet);
+                }
+                else
+                {
+                    DrawRectangle(rectangle);
+                }
+            }
         }
 
         private void ClearCanvas_Click(object sender, RoutedEventArgs e)
@@ -566,23 +972,26 @@ namespace RasterizationApp
             circles.Clear();
             polygons.Clear();
             capsules.Clear();
+            rectangles.Clear();
             currentPolygonVertices.Clear();
 
             selectedLine = null;
             selectedCircle = null;
             selectedPolygon = null;
             capsule = null;
+            selectedRectangle = null;
 
             isDrawing = false;
             isDrawingLine = true;
             isDrawingCircle = false;
             isDrawingPolygon = false;
             isDrawingCapsule = false;
+            isDrawingRectangle = false;
 
             LineButton.IsChecked = true;
             CircleButton.IsChecked = false;
             PolygonButton.IsChecked = false;
-            CapsuleButton.IsChecked = false;
+            RectangleButton.IsChecked = false;
 
             RedrawCanvas();
         }
@@ -603,18 +1012,51 @@ namespace RasterizationApp
                 else if (selectedCircle != null)
                 {
                     selectedCircle.Color = newColor;
+                    selectedCircle = null;
                     RedrawCanvas();
                 }
                 else if (selectedPolygon != null)
                 {
                     selectedPolygon.Color = newColor;
+                    selectedPolygon = null;
+                    RedrawCanvas();
+                }
+                else if (selectedRectangle != null)
+                {
+                    selectedRectangle.Color = newColor;
+                    selectedRectangle = null;
                     RedrawCanvas();
                 }
             }
         }
+        /*private void SelectFillColor_Click(object sender, RoutedEventArgs e)
+        {
+            ColorDialog colorDialog = new ColorDialog();
+            if (colorDialog.ShowDialog() == System.Windows.Forms.DialogResult.OK)
+            {
+                SolidColorBrush newColor = new SolidColorBrush(System.Windows.Media.Color.FromArgb(colorDialog.Color.A, colorDialog.Color.R, colorDialog.Color.G, colorDialog.Color.B));
+                fillColor = newColor;
+            }
+        }
 
-        
+        private void SelectBoundaryColor_Click(object sender, RoutedEventArgs e)
+        {
+            ColorDialog colorDialog = new ColorDialog();
+            if (colorDialog.ShowDialog() == System.Windows.Forms.DialogResult.OK)
+            {
+                SolidColorBrush newColor = new SolidColorBrush(System.Windows.Media.Color.FromArgb(colorDialog.Color.A, colorDialog.Color.R, colorDialog.Color.G, colorDialog.Color.B));
+                boundaryColor = newColor;
+            }
+        }
 
+        private void BoundaryFill_Click(object sender, RoutedEventArgs e)
+        {
+            boundaryMode = true;
+            isDrawingLine = false;
+            isDrawingCircle = false;
+            isDrawingPolygon = false;
+            isDrawingRectangle = false;
+        }*/
         private void ToggleAntialiasing_Click(object sender, RoutedEventArgs e)
         {
             antialiasingEnabled = !antialiasingEnabled;
@@ -635,6 +1077,7 @@ namespace RasterizationApp
             dataToSave.Lines.Clear();
             dataToSave.Circles.Clear();
             dataToSave.Polygons.Clear();
+            dataToSave.Rectangles.Clear();
 
             foreach (var line in lines)
             {
@@ -663,7 +1106,21 @@ namespace RasterizationApp
                 {
                     Vertices = polygon.Vertices,
                     Thickness = polygon.Thickness,
-                    Color = polygon.Color
+                    Color = polygon.Color,
+                    IsFilled = polygon.isFilled,
+                    IsImageFilled = polygon.IsImageFilled,
+                    FillImagePath = polygon.FillImagePath,
+                    FillImage = polygon.FillImage
+                });
+            }
+
+            foreach (var rectangle in rectangles)
+            {
+                dataToSave.Rectangles.Add(new RectangleData
+                {
+                    Vertices = rectangle.Vertices,
+                    Thickness = rectangle.Thickness,
+                    Color = rectangle.Color
                 });
             }
             SaveShapesToFile();
@@ -673,6 +1130,5 @@ namespace RasterizationApp
         {
             LoadShapesFromFile();
         }
-
     }
 }   

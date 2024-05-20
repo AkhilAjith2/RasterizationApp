@@ -30,12 +30,14 @@ namespace RasterizationApp
         public List<LineData> Lines { get; set; }
         public List<CircleData> Circles { get; set; }
         public List<PolygonData> Polygons { get; set; }
+        public List<RectangleData> Rectangles { get; set; }
 
         public ShapeData()
         {
             Lines = new List<LineData>();
             Circles = new List<CircleData>();
             Polygons = new List<PolygonData>();
+            Rectangles = new List<RectangleData>();
         }
     }
 
@@ -55,6 +57,53 @@ namespace RasterizationApp
     }
 
     public class PolygonData
+    {
+        public List<Point> Vertices { get; set; }
+        public int Thickness { get; set; }
+        public SolidColorBrush Color { get; set; }
+        public bool IsFilled { get; set; }
+        public bool IsImageFilled { get; set; }
+        public string FillImagePath { get; set; }
+
+        // Add a property to handle the WriteableBitmap image data as a byte array
+        [XmlIgnore]
+        public WriteableBitmap FillImage { get; set; }
+
+        // Use an additional property to serialize the WriteableBitmap data
+        public byte[] FillImageData
+        {
+            get
+            {
+                if (FillImage == null)
+                    return null;
+
+                using (MemoryStream ms = new MemoryStream())
+                {
+                    BitmapEncoder encoder = new PngBitmapEncoder();
+                    encoder.Frames.Add(BitmapFrame.Create(FillImage));
+                    encoder.Save(ms);
+                    return ms.ToArray();
+                }
+            }
+            set
+            {
+                if (value == null)
+                {
+                    FillImage = null;
+                }
+                else
+                {
+                    using (MemoryStream ms = new MemoryStream(value))
+                    {
+                        BitmapDecoder decoder = new PngBitmapDecoder(ms, BitmapCreateOptions.PreservePixelFormat, BitmapCacheOption.OnLoad);
+                        FillImage = new WriteableBitmap(decoder.Frames[0]);
+                    }
+                }
+            }
+        }
+    }
+
+    public class RectangleData
     {
         public List<Point> Vertices { get; set; }
         public int Thickness { get; set; }
@@ -140,6 +189,7 @@ namespace RasterizationApp
                 lines.Clear();
                 circles.Clear();
                 polygons.Clear();
+                rectangles.Clear();
 
                 // Add loaded shapes to the canvas
                 foreach (var lineData in loadedData.Lines)
@@ -154,10 +204,26 @@ namespace RasterizationApp
                     circles.Add(new CustomCircle(circleData.Center, circleData.Radius, circleData.Color));
                 }
 
-                foreach (var polygonData in loadedData.Polygons)
+                /*foreach (var polygonData in loadedData.Polygons)
                 {
                     // Draw the polygon with the converted brush
                     polygons.Add(new Polygon(polygonData.Vertices,polygonData.Thickness, polygonData.Color));
+                }*/
+                foreach (var polygonData in loadedData.Polygons)
+                {
+                    polygons.Add(new Polygon(polygonData.Vertices, polygonData.Thickness, polygonData.Color)
+                    {
+                        isFilled = polygonData.IsFilled,
+                        IsImageFilled = polygonData.IsImageFilled,
+                        FillImagePath = polygonData.FillImagePath,
+                        FillImage = polygonData.FillImage // Automatically handled by the PolygonData property
+                    });
+                }
+
+                foreach (var rectangleData in loadedData.Rectangles)
+                {
+                    // Draw the polygon with the converted brush
+                    rectangles.Add(new MyRectangle(rectangleData.Vertices, rectangleData.Thickness, rectangleData.Color));
                 }
             }
             RedrawCanvas();

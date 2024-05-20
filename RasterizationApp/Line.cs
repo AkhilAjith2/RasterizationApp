@@ -53,40 +53,7 @@ namespace RasterizationApp
             return Math.Sqrt(Math.Pow(x2 - x1, 2) + Math.Pow(y2 - y1, 2));
         }
 
-        /*private void DrawLine(Point p1, Point p2, int thickness = 1, SolidColorBrush color = null)
-        {
-            int x0 = (int)p1.X;
-            int y0 = (int)p1.Y;
-            int x1 = (int)p2.X;
-            int y1 = (int)p2.Y;
-
-            int dx = Math.Abs(x1 - x0);
-            int dy = Math.Abs(y1 - y0);
-            int sx = (x0 < x1) ? 1 : -1;
-            int sy = (y0 < y1) ? 1 : -1;
-            int err = dx - dy;
-
-            bool isHorizontal = dx > dy;
-
-            while (true)
-            {
-                DrawLineWithThickness(x0, y0, color, thickness, isHorizontal);
-                if (x0 == x1 && y0 == y1) break;
-                int e2 = 2 * err;
-                if (e2 > -dy)
-                {
-                    err -= dy;
-                    x0 += sx;
-                }
-                if (e2 < dx)
-                {
-                    err += dx;
-                    y0 += sy;
-                }
-            }a
-        }*/
-
-        private void DrawLine(Point p1, Point p2, int thickness = 1, SolidColorBrush color = null)
+        public static void DrawLine(Point p1, Point p2, int thickness = 1, SolidColorBrush color = null)
         {
             int x1 = (int)p1.X;
             int y1 = (int)p1.Y;
@@ -236,7 +203,7 @@ namespace RasterizationApp
             }
         }
 
-        private void DrawLineWithThickness(int x, int y, SolidColorBrush color, int thickness, bool isHorizontal)
+        private static void DrawLineWithThickness(int x, int y, SolidColorBrush color, int thickness, bool isHorizontal)
         {
             PutPixel(x, y, color);
 
@@ -261,54 +228,18 @@ namespace RasterizationApp
             }
         }
 
-        public void PutPixel(int x, int y, SolidColorBrush color)
+        public static void PutPixel(int x, int y, SolidColorBrush color)
         {
-            Rectangle pixel = new Rectangle
+            if (x >= 0 && x < writableBitmap.PixelWidth && y >= 0 && y < writableBitmap.PixelHeight)
             {
-                Width = 1,
-                Height = 1,
-                Fill = color,
-                Margin = new Thickness(x, y, 0, 0)
-            };
-            DrawingCanvas.Children.Add(pixel);
+                byte[] colorData = { color.Color.B, color.Color.G, color.Color.R, color.Color.A };
+
+                int bytesPerPixel = (writableBitmap.Format.BitsPerPixel + 7) / 8;
+                int stride = writableBitmap.PixelWidth * bytesPerPixel;
+
+                writableBitmap.WritePixels(new Int32Rect(x, y, 1, 1), colorData, stride, 0);
+            }
         }
-
-        /*private void PutPixel(int x, int y, SolidColorBrush color)
-        {
-            int stride = writableBitmap.PixelWidth * (writableBitmap.Format.BitsPerPixel / 8);
-            int bytesPerPixel = writableBitmap.Format.BitsPerPixel / 8;
-            byte[] colorData = { ((System.Windows.Media.Color)color.Color).B, ((System.Windows.Media.Color)color.Color).G, ((System.Windows.Media.Color)color.Color).R, ((System.Windows.Media.Color)color.Color).A };
-
-            writableBitmap.WritePixels(new Int32Rect(x, y, 1, 1), colorData, stride, 0);
-        }*/
-
-        /*private void PutPixel(int x, int y, SolidColorBrush color)
-        {
-            // Lock the writable bitmap to write pixel data
-            writableBitmap.Lock();
-
-            // Calculate the stride of the bitmap (number of bytes per pixel row)
-            int stride = writableBitmap.PixelWidth * 4;
-
-            // Get a pointer to the back buffer of the writable bitmap
-            IntPtr backBuffer = writableBitmap.BackBuffer;
-
-            // Calculate the address of the pixel to draw
-            backBuffer += y * stride + x * 4;
-
-            // Convert the WPF color to a System.Drawing.Color
-            System.Drawing.Color drawingColor = System.Drawing.Color.FromArgb(color.Color.A, color.Color.R,
-                                                                             color.Color.G, color.Color.B);
-
-            // Set the color of the pixel in the back buffer
-            System.Runtime.InteropServices.Marshal.Copy(new byte[] { drawingColor.B, drawingColor.G,
-                                                               drawingColor.R, drawingColor.A }, 0,
-                                                        backBuffer, 4);
-
-            // Unlock the writable bitmap to update the changes
-            writableBitmap.AddDirtyRect(new Int32Rect(x, y, 1, 1));
-            writableBitmap.Unlock();
-        }*/
 
         private bool ClosestLineToSelect(Point clickedPoint, Point start, Point end)
         {
@@ -321,11 +252,12 @@ namespace RasterizationApp
             isDrawingCircle = false;
             isDrawingPolygon = false;
             isDrawingCapsule = false;
-            
+            isDrawingRectangle = false;
+
             LineButton.IsChecked = true;
             CircleButton.IsChecked = false;
             PolygonButton.IsChecked = false;
-            CapsuleButton.IsChecked = false;
+            RectangleButton.IsChecked = false;
         }
 
         private int PromptForThickness()

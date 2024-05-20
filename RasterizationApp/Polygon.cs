@@ -19,6 +19,7 @@ using System.Windows.Shapes;
 using Rectangle = System.Windows.Shapes.Rectangle;
 using Brushes = System.Windows.Media.Brushes;
 using Point = System.Windows.Point;
+using static System.Windows.Forms.LinkLabel;
 
 namespace RasterizationApp
 {
@@ -26,19 +27,25 @@ namespace RasterizationApp
     {
         public List<Point> Vertices { get; set; }
         public int Thickness { get; set; }
-        public SolidColorBrush Color { get; set; } 
+        public SolidColorBrush Color { get; set; }
+        public bool isFilled { get; set; }
+        public bool IsImageFilled { get; set; }
+        public string FillImagePath { get; set; }
+        public WriteableBitmap FillImage { get; set; }
 
-        public Polygon(List<Point> vertices, int thickness, SolidColorBrush color)
+        public Polygon(List<Point> vertices, int thickness, SolidColorBrush color, bool isFilled = false, bool IsImageFilled = false, string FillImagePath = null, WriteableBitmap FillImage = null)
         {
             Vertices = vertices;
             Thickness = thickness;
-            Color = color; 
+            Color = color;
+            isFilled = false;
         }
         public Polygon()
         {
             Vertices = new List<Point>();
             Thickness = new int();
-            Color = new SolidColorBrush(); 
+            Color = new SolidColorBrush();
+            isFilled = false;
         }
     }
     public partial class MainWindow : Window
@@ -65,69 +72,43 @@ namespace RasterizationApp
                 return;
             }
 
-           
             for (int i = 0; i < polygon.Vertices.Count - 1; i++)
             {
-                DrawLine(polygon.Vertices[i], polygon.Vertices[i + 1], polygon.Thickness, color);
-            }
-
-            DrawLine(polygon.Vertices[polygon.Vertices.Count - 1], polygon.Vertices[0], polygon.Thickness, color);
-
-            /*FillPolygon(polygon.Vertices, polygon.Color);*/
-
-            if (selectedPolygon != null && polygon == selectedPolygon && isMovingEdge==false)
-            {
-                DrawPolygonOutline(polygon.Vertices, Brushes.Yellow, 2); 
-            }
-            else if (selectedPolygon != null && polygon == selectedPolygon && isMovingEdge == true)
-            {
-                DrawPolygonOutline(polygon.Vertices, Brushes.Green, 2);
-            }
-        }
-        private void DrawPolygonOutline(List<Point> vertices, SolidColorBrush color, int thickness)
-        {
-            System.Windows.Shapes.Polygon polygonOutline = new System.Windows.Shapes.Polygon();
-
-            PointCollection points = new PointCollection();
-            foreach (var vertex in vertices)
-            {
-                points.Add(vertex);
-            }
-            polygonOutline.Points = points;
-
-            polygonOutline.StrokeThickness = thickness + 2;
-            polygonOutline.Stroke = color;
-
-            polygonOutline.Points.Add(vertices[0]);
-
-            DrawingCanvas.Children.Add(polygonOutline);
-        }
-        private void FillPolygon(List<Point> vertices, SolidColorBrush color)
-        {
-            if (vertices.Count < 3)
-            {
-                return;
-            }
-
-            Path filledPolygon = new Path();
-            filledPolygon.Fill = color;
-
-            StreamGeometry geometry = new StreamGeometry();
-            using (StreamGeometryContext context = geometry.Open())
-            {
-                context.BeginFigure(vertices[0], true, true);
-
-                for (int i = 1; i < vertices.Count; i++)
+                if (antialiasingEnabled)
                 {
-                    context.LineTo(vertices[i], true, false);
+                    ThickAntialiasedLine((int)polygon.Vertices[i].X, (int)polygon.Vertices[i].Y, (int)polygon.Vertices[i + 1].X, (int)polygon.Vertices[i + 1].Y, polygon.Thickness, color);
+                }
+                else
+                {
+                    DrawLine(polygon.Vertices[i], polygon.Vertices[i + 1], polygon.Thickness, color);
                 }
             }
+            if (antialiasingEnabled)
+            {
+                ThickAntialiasedLine((int)polygon.Vertices[polygon.Vertices.Count - 1].X, (int)polygon.Vertices[polygon.Vertices.Count - 1].Y, (int)polygon.Vertices[0].X, (int)polygon.Vertices[0].Y, polygon.Thickness, color);
+            }
+            else
+            {
+                DrawLine(polygon.Vertices[polygon.Vertices.Count - 1], polygon.Vertices[0], polygon.Thickness, color);
+            }
 
-            geometry.Freeze();
+            if(clippingRectangle!=null)
+            {
+                DrawClippingLine(polygon, clippingRectangle, 3, Brushes.Blue);
+            }
+        }
 
-            filledPolygon.Data = geometry;
+        private void DrawClippingLine(Polygon polygon, MyRectangle clip, int thickness, SolidColorBrush highlightColor)
+        {
+            List<Point> clippedPolygon = ClipPolygon(polygon);
 
-            DrawingCanvas.Children.Add(filledPolygon);
+            // Ensure we draw each segment properly
+            for (int i = 0; i < clippedPolygon.Count; i += 2)
+            {
+                Point p1 = clippedPolygon[i];
+                Point p2 = clippedPolygon[i + 1];
+                DrawLine(p1, p2, thickness, highlightColor);
+            }
         }
 
         private void DrawPolygon_Click(object sender, RoutedEventArgs e)
@@ -136,11 +117,12 @@ namespace RasterizationApp
             isDrawingCircle = false;
             isDrawingPolygon = true;
             isDrawingCapsule = false;
+            isDrawingRectangle = false;
 
             LineButton.IsChecked = false;
             CircleButton.IsChecked = false;
             PolygonButton.IsChecked = true;
-            CapsuleButton.IsChecked = false;
+            RectangleButton.IsChecked = false;
         }
 
         private bool IsPointInsidePolygon(Point point, List<Point> polygon)
